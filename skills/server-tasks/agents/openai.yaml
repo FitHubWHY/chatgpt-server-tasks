@@ -1,0 +1,4 @@
+interface:
+  display_name: "服务器续跑"
+  short_description: "在自己的 Linux 服务器托管 Codex 任务，离线后查看结果与继续会话"
+  default_prompt: "使用 $server-tasks 把这项工作交给服务器后台运行，返回任务编号。"

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codex-server-tasks",
+  "version": "0.1.0",
+  "description": "Submit persistent Codex tasks to your Linux server and recover their results from Codex.",
+  "license": "MIT"
+}
