@@ -1,78 +1,80 @@
-# Codex Server Tasks · 服务器续跑
+# Codex Server Tasks
+
+English | [Chinese](README.zh-CN.md)
 
 A skill-based Codex plugin that runs independent tasks on your own Linux server. Submit a task in Codex, disconnect your desktop, and return to inspect results or continue the same server-side Codex session.
 
-在现有 Codex App 中通过 `$server-tasks` 提交任务。服务器的 systemd user service 托管执行，客户端断网、退出或关机不会终止服务器任务。无需安装第二个桌面应用，不对公网开放新端口。
+Use `$server-tasks` in your existing Codex App. A systemd user service manages each task on the server, so disconnecting, quitting the client, or shutting down your desktop does not stop it. No second desktop application or new public port is required.
 
-**边界：这是独立服务器任务托管，不会迁移或接管当前桌面聊天。** 任务需要显式提交；当前聊天的完整上下文不会自动传给服务器，结果也不会自动推送回来。
+**This plugin manages independent server tasks; it does not migrate or take over the current desktop chat.** You must submit tasks explicitly. The full context of your current chat is not sent automatically, and results are not pushed back automatically.
 
-## 1. 一键拉取代码并安装插件
+## 1. Clone and install in one step
 
-先在**使用 Codex 的执行主机**上准备 Git、Python 3.10+ 和支持 `codex plugin` 命令的 Codex CLI。CLI 未安装时，可在已有 Node.js/npm 的环境执行 `npm install -g @openai/codex`。Codex App 的 shell 工具已在远程服务器运行时，就在那台服务器安装；工具仍在本地电脑运行时，在本地安装插件，后续通过 SSH 提交任务。
+First, prepare Git, Python 3.10+, and a Codex CLI version that supports `codex plugin` commands on **the host where Codex runs shell commands**. If the CLI is missing and Node.js/npm is already installed, run `npm install -g @openai/codex`. If the Codex App's shell tools already run on your remote server, install the plugin there. If the tools run on your local computer, install the plugin locally and submit tasks over SSH.
 
 ### Linux / macOS / Bash
 
-将下面整段复制到终端，即可从本仓库拉取代码并安装插件：
+Copy the entire block into a terminal to clone this repository and install the plugin:
 
 ```bash
 (
   set -eu
-  command -v git >/dev/null || { echo '请先安装 Git'; exit 1; }
-  command -v codex >/dev/null || { echo '请先安装 Codex CLI'; exit 1; }
-  command -v python3 >/dev/null || { echo '请先安装 Python 3.10+'; exit 1; }
-  python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else "需要 Python 3.10+")'
+  command -v git >/dev/null || { echo 'Install Git first'; exit 1; }
+  command -v codex >/dev/null || { echo 'Install Codex CLI first'; exit 1; }
+  command -v python3 >/dev/null || { echo 'Install Python 3.10+ first'; exit 1; }
+  python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else "Python 3.10+ is required")'
   codex plugin --help >/dev/null
   server_tasks_repo_url='https://github.com/FitHubWHY/chatgpt-server-tasks.git'
   git clone -- "$server_tasks_repo_url" codex-server-tasks
   cd codex-server-tasks
   codex plugin marketplace add "$PWD"
   codex plugin add codex-server-tasks@codex-server-tasks
-  echo '安装完成，请在 Codex App 中新开聊天并使用 $server-tasks。'
+  echo 'Installed. Open a new chat in Codex App and use $server-tasks.'
 )
 ```
 
-源码仓库：[FitHubWHY/chatgpt-server-tasks](https://github.com/FitHubWHY/chatgpt-server-tasks)。运行位置需要能创建 `codex-server-tasks` 目录；同名目录已存在时，`git clone` 会停止，不覆盖已有文件。
+Source repository: [FitHubWHY/chatgpt-server-tasks](https://github.com/FitHubWHY/chatgpt-server-tasks). Run this from a location where you can create a `codex-server-tasks` directory. If that directory already exists, `git clone` stops without overwriting it.
 
 ### Windows / PowerShell
 
-本地需先安装 Git、Python 3.10+、Codex CLI；使用 SSH 模式时还需 OpenSSH 客户端。复制以下整段即可：
+Install Git, Python 3.10+, and Codex CLI locally first. SSH mode also requires an OpenSSH client. Copy the entire block:
 
 ```powershell
 & {
     $ErrorActionPreference = 'Stop'
     Get-Command git, codex, python | Out-Null
     python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'
-    if ($LASTEXITCODE -ne 0) { throw '需要 Python 3.10+' }
+    if ($LASTEXITCODE -ne 0) { throw 'Python 3.10+ is required' }
     codex plugin --help | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw '当前 Codex CLI 不支持插件命令，请先更新' }
+    if ($LASTEXITCODE -ne 0) { throw 'Update Codex CLI to a version that supports plugin commands' }
     $serverTasksRepoUrl = 'https://github.com/FitHubWHY/chatgpt-server-tasks.git'
     git clone -- $serverTasksRepoUrl codex-server-tasks
-    if ($LASTEXITCODE -ne 0) { throw '拉取失败，请检查地址、网络及同名目录' }
+    if ($LASTEXITCODE -ne 0) { throw 'Clone failed. Check the URL, network, and existing directory' }
     $serverTasksDirectory = (Resolve-Path .\codex-server-tasks).Path
     codex plugin marketplace add $serverTasksDirectory
-    if ($LASTEXITCODE -ne 0) { throw '注册插件源失败' }
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to register the plugin marketplace' }
     codex plugin add codex-server-tasks@codex-server-tasks
-    if ($LASTEXITCODE -ne 0) { throw '安装插件失败' }
-    Write-Host '安装完成，请在 Codex App 中新开聊天并使用 $server-tasks。'
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to install the plugin' }
+    Write-Host 'Installed. Open a new chat in Codex App and use $server-tasks.'
 }
 ```
 
-### 已经下载目录
+### Install from a downloaded directory
 
-如果是通过 GitHub 的 Download ZIP 下载，先解压并进入包含 `plugin.json` 的目录，再执行：
+If you used GitHub's Download ZIP option, extract the archive and enter the directory containing `plugin.json`, then run:
 
 ```bash
 codex plugin marketplace add "$PWD"
 codex plugin add codex-server-tasks@codex-server-tasks
 ```
 
-请保留 `.agents` 和 `.codex-plugin` 隐藏目录。安装完成后新开 Codex 聊天；若技能还未出现，重新打开 Codex App。插件不需要 MCP 服务，也不需要额外安装 Python 包。
+Keep the hidden `.agents` and `.codex-plugin` directories. Open a new Codex chat after installation. If the skill does not appear, reopen Codex App. The plugin needs no MCP server or additional Python packages.
 
-以上“一键”负责**拉取和安装插件**；首次使用的服务器登录、linger 和 SSH 配置需按下面步骤准备一次。
+The blocks above **clone and install the plugin**. Complete server authentication, linger, and SSH setup once before first use, as described below.
 
-## 2. 首次准备 Linux 服务器
+## 2. Prepare your Linux server
 
-以下命令在**始终开机的 Linux 服务器**执行，使用与后续 SSH 相同的用户。若服务器已准备好，可直接检查条件并跳过已完成的操作。
+Run the following commands on **the Linux server that will stay on**, using the same account you will use for SSH. If the server is already configured, check the requirements and skip completed steps.
 
 ```bash
 python3 --version
@@ -80,47 +82,47 @@ codex --version
 codex login status
 ```
 
-服务器尚未安装 Codex CLI 时，在已有 Node.js/npm 的环境执行：
+If Codex CLI is not installed on the server, run this in an environment with Node.js/npm:
 
 ```bash
 npm install -g @openai/codex
 ```
 
-尚未登录时执行设备登录，按终端给出的地址与验证码完成操作：
+If you are not signed in, start device authentication and follow the URL and code shown in the terminal:
 
 ```bash
 codex login --device-auth
 codex login status
 ```
 
-然后检查 user manager 和 linger：
+Then check the systemd user manager and linger:
 
 ```bash
 systemctl --user show-environment >/dev/null
 loginctl show-user "$(id -u)" --property=Linger --value
 ```
 
-第二条命令需要输出 `yes`。如果输出 `no`，请由有管理员权限的人在服务器上执行：
+The second command must print `yes`. If it prints `no`, have someone with administrator privileges run this on the server:
 
 ```bash
 sudo loginctl enable-linger "$(id -un)"
 ```
 
-不要用 sudo 运行 Codex 或插件任务；linger 应开启在实际执行任务的普通用户上。`systemctl --user` 连接失败时，需先配置该用户的 systemd user manager；没有 systemd 的服务器或容器不能直接使用本插件当前的托管方式。
+Do not run Codex or plugin tasks with sudo. Enable linger for the ordinary user who will run tasks. If `systemctl --user` cannot connect, configure that user's systemd user manager first. The plugin's current task management method requires systemd and cannot run directly on a server or container without it.
 
-## 3. 配置 SSH 并检查环境
+## 3. Configure SSH and check readiness
 
-### Codex 工具已经在服务器执行
+### Codex tools already run on the server
 
-无需再配置一层 SSH。在插件源码目录运行：
+No additional SSH connection is needed. Run this from the plugin source directory:
 
 ```bash
 python3 skills/server-tasks/scripts/client.py --local-server doctor
 ```
 
-### Codex 工具在本地电脑执行
+### Codex tools run on your local computer
 
-先在本地 `~/.ssh/config`（Windows 为用户目录下的 `.ssh/config`）配置自己的服务器，例如：
+Configure your server in your local `~/.ssh/config` file (`.ssh/config` under your user directory on Windows), for example:
 
 ```sshconfig
 Host my-server
@@ -129,134 +131,132 @@ Host my-server
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-替换服务器地址和用户名，并使用已有可用密钥。先手动连接一次，完成服务器主机密钥校验，再确认后续可以免交互连接：
+Replace the server address and username, and use an existing working key. Connect manually once to verify the server's host key, then confirm that future connections can run without interaction:
 
 ```bash
 ssh my-server
 ```
 
-从服务器执行 `exit` 返回本地后，在插件源码目录运行：
+Run `exit` on the server to return to your local shell, then run these commands from the plugin source directory:
 
 ```bash
 ssh -T -o BatchMode=yes my-server 'python3 --version'
 python3 skills/server-tasks/scripts/client.py --host my-server doctor
 ```
 
-Windows PowerShell 中，若 Python 命令是 `python`，将本地调用中的 `python3` 改为 `python`；远端命令仍按服务器环境使用 `python3`。带口令的密钥需要预先加载到 SSH agent，插件不会弹出口令输入窗口。
+In Windows PowerShell, replace `python3` with `python` in local commands if that is your Python command. Remote commands should still use `python3` as appropriate for the server. Load passphrase-protected keys into your SSH agent beforehand; the plugin does not open a passphrase prompt.
 
-`doctor` 返回 `"ready": true` 表示运行条件通过，配合前面的服务器登录检查后即可提交任务。`doctor` 不调用模型，也不检查登录凭据是否有效。若远端非交互 PATH 找不到 Codex，先在服务器运行 `command -v codex` 得到绝对路径，再指定：
+When `doctor` returns `"ready": true`, the runtime requirements pass. Once you have also checked server authentication as described above, you can submit tasks. `doctor` does not call a model or check whether login credentials are valid. If the remote non-interactive PATH does not include Codex, run `command -v codex` on the server to find its absolute path, then specify it:
 
 ```bash
 python3 skills/server-tasks/scripts/client.py --host my-server \
-  --codex-bin /实际路径/codex doctor
+  --codex-bin /path/to/codex doctor
 ```
 
-把主机别名和需要的 Codex 路径告诉当前聊天，后续操作沿用同一配置。SSH 模式会自动缓存运行器到服务器，无需在服务器另装桌面应用或手动克隆此插件。
+Tell the current chat your host alias and any custom Codex path so later operations use the same configuration. SSH mode automatically caches the runner on the server. You do not need another desktop app or a manual clone of this plugin on the server.
 
-## 4. 在 Codex 中使用
+## 4. Use the plugin in Codex
 
-新开聊天，先选择实际执行方式进行检查：
+Open a new chat and check the execution mode you intend to use:
 
 ```text
-$server-tasks 使用 SSH 主机 my-server 检查服务器能否后台续跑。
+$server-tasks Check whether SSH host my-server is ready to run background tasks.
 ```
 
-如果工具已经在目标服务器运行，改为：
+If the tools already run on the target server, use:
 
 ```text
-$server-tasks 使用当前服务器检查后台续跑条件。
+$server-tasks Check whether the current server is ready to run background tasks.
 ```
 
-确认检查通过后，提交具体任务；工作目录必须是服务器上真实存在的目录：
+After the check passes, submit a specific task. The working directory must already exist on the server:
 
 ```text
-$server-tasks 使用 SSH 主机 my-server，在 /path/to/your/repository 后台执行：阅读项目结构并总结入口，不修改文件。返回任务编号。
+$server-tasks On SSH host my-server, run this in the background in /path/to/your/repository: read the project structure and summarize the entry points without modifying files. Return the job ID.
 ```
 
-拿到 `job_id` 后，客户端可以断网、退出或关机，服务器继续执行。重新打开 Codex 后，用同一服务器查询或继续：
+Once you receive a `job_id`, you can disconnect, quit the client, or shut down your desktop while the server continues. Reopen Codex and query or continue tasks on the same server:
 
 ```text
-$server-tasks 使用 SSH 主机 my-server 查看最近任务的进度和结果。
-$server-tasks 查看 SSH 主机 my-server 上任务 <job_id> 的结果。
-$server-tasks 继续 SSH 主机 my-server 上的任务 <job_id>：进一步分析测试入口。
-$server-tasks 停止 SSH 主机 my-server 上的任务 <job_id>。
+$server-tasks Show the progress and results of recent tasks on SSH host my-server.
+$server-tasks Show the result of task <job_id> on SSH host my-server.
+$server-tasks Continue task <job_id> on SSH host my-server: analyze the test entry points in more detail.
+$server-tasks Stop task <job_id> on SSH host my-server.
 ```
 
-已在服务器执行工具时，把上述“SSH 主机 my-server”替换为“当前服务器”。同一任务始终使用相同的主机和执行用户；自定义了 `--state-dir` 时还需使用相同状态目录。
+If your tools run directly on the server, replace "SSH host my-server" with "the current server". Always use the same host and execution user for a task. If you set a custom `--state-dir`, use the same state directory as well.
 
-执行中的任务先查询；原任务结束或明确停止后才使用“继续”。任务上下文来自提交的提示词，请写清目标、允许修改的范围、项目约束和完成标准。
+Query a running task first. Use "continue" only after the original task has finished or you have explicitly stopped it. Task context comes from the submitted prompt: state the goal, permitted scope of changes, project constraints, and completion criteria clearly.
 
-## 运行条件
+## Requirements
 
-- 执行服务器：Linux、Python 3.10+、已安装并登录的 Codex CLI。
-- `systemd-run --user` 可用，并启用用户 linger，保证退出 SSH 登录后 user manager 仍运行。
-- 客户端：Python 3.10+；SSH 模式还需要 OpenSSH。Windows 客户端使用 SSH 模式，服务器仍须是 Linux。
-- `doctor` 只检查条件，不会自动开启 linger、安装依赖或修改系统登录配置。
-- 服务器须保持开机联网。服务器重启会中断任务，插件不会自动重放结果不明的写操作；检查后可以显式继续。
+- Execution server: Linux, Python 3.10+, and an installed, authenticated Codex CLI.
+- Working `systemd-run --user` and user linger, so the user manager remains active after SSH logout.
+- Client: Python 3.10+; SSH mode also requires OpenSSH. Windows clients use SSH mode, and the execution server must still run Linux.
+- `doctor` checks requirements; it does not enable linger, install dependencies, or change system login configuration.
+- The server must remain powered on and connected to the network. A server restart interrupts tasks. The plugin does not automatically replay writes whose outcome is unknown; inspect the state and continue explicitly if appropriate.
 
-服务器未配置 linger 时，请由服务器管理员按自己的管理方式配置。插件不会调用 sudo 或调整已有服务。
+If linger is not configured, ask your server administrator to enable it using their normal administration process. The plugin does not invoke sudo or modify existing services.
 
-## 命令行
+## Command line
 
-以下命令从本仓库根目录运行。`--cwd` 必须是服务器上真实存在的绝对目录。
+Run these commands from the repository root. `--cwd` must be an existing absolute directory on the server.
 
 ```bash
 python3 skills/server-tasks/scripts/client.py --local-server doctor
 python3 skills/server-tasks/scripts/client.py --local-server submit \
   --cwd /path/to/your/repository --sandbox read-only \
   --request-id example-analysis-001 --prompt-file - <<'TASK'
-阅读项目结构并总结代码入口，不修改文件。
+Read the project structure and summarize the code entry points without modifying files.
 TASK
 python3 skills/server-tasks/scripts/client.py --local-server list
 python3 skills/server-tasks/scripts/client.py --local-server status <job_id>
 python3 skills/server-tasks/scripts/client.py --local-server events <job_id> --after-seq 0
 python3 skills/server-tasks/scripts/client.py --local-server resume <job_id> \
-  --request-id example-analysis-002 --prompt '继续分析测试入口。'
+  --request-id example-analysis-002 --prompt 'Continue analyzing the test entry points.'
 python3 skills/server-tasks/scripts/client.py --local-server cancel <job_id>
 ```
 
-远程操作示例：
+Remote examples:
 
 ```bash
 python3 skills/server-tasks/scripts/client.py --host my-server doctor
 python3 skills/server-tasks/scripts/client.py --host my-server \
   --codex-bin /path/to/codex submit --cwd /path/to/your/repository \
-  --request-id example-remote-001 --prompt '总结项目结构，不修改文件。' --sandbox read-only
+  --request-id example-remote-001 --prompt 'Summarize the project structure without modifying files.' --sandbox read-only
 ```
 
-`--codex-bin` 可在远程非交互 shell 的 PATH 找不到 Codex 时指定其绝对路径。
+Use `--codex-bin` to specify the absolute Codex path when it is missing from the remote non-interactive shell's PATH.
 
-## 执行与恢复
+## Execution and recovery
 
-1. 客户端把请求交给服务器，返回 `job_id`。每个任务由独立 systemd user service 执行。
-2. SQLite 保存任务状态和带游标的事件；原始输出和最终结果保留在服务器。
-3. 桌面退出后 service 继续运行。回来用 `status` 查看结果，`events` 按 `next_seq` 增量读取。
-4. `resume` 创建新任务，并通过已保存的原生 Codex `thread_id` 继续服务器会话。
+1. The client sends a request to the server and receives a `job_id`. An independent systemd user service runs each task.
+2. SQLite stores task state and events with sequence cursors. Raw output and final results remain on the server.
+3. The service continues after the desktop client exits. Use `status` to inspect results and `events` with `next_seq` to read incremental updates.
+4. `resume` creates a new job and continues the server session using the saved native Codex `thread_id`.
 
-`request-id` 用于提交去重。网络结果不明时复用相同编号和内容，不换编号重复提交。`queued` 只表示已接收；只有 `completed` 表示本轮正常结束。执行失败、进程消失或取消不会被报告为成功。同一 Codex 会话不能同时恢复多次。
+`request-id` deduplicates submissions. If a network failure leaves the result uncertain, reuse the same ID and content instead of submitting again with a new ID. `queued` only means the request was accepted; only `completed` means that turn finished normally. Failed execution, missing processes, and cancellation are not reported as success. You cannot resume the same Codex session concurrently.
 
-默认沙箱为 `workspace-write`，纯分析可用 `read-only`。后台任务不能弹出桌面授权窗口；超出沙箱的操作会失败，不会自动绕过权限。停止任务只停止对应的插件 service，保留代码目录及其他会话。
+The default sandbox is `workspace-write`; use `read-only` for analysis. Background tasks cannot open desktop approval dialogs. Operations outside the sandbox fail rather than bypass permissions automatically. Stopping a task stops only its plugin service and preserves the code directory and other sessions.
 
-## 数据位置
+## Data location
 
-状态默认存放在服务器的 `$XDG_STATE_HOME/codex-server-tasks`，未设置时为 `~/.local/state/codex-server-tasks`。`--state-dir` 可指定另一个私有绝对目录。
+Server state defaults to `$XDG_STATE_HOME/codex-server-tasks`, or `~/.local/state/codex-server-tasks` when `XDG_STATE_HOME` is unset. Use `--state-dir` to select another private absolute directory.
 
-状态包含提示词、事件和输出。启动期间会短暂保存权限为 `0600` 的环境快照，worker 读取后删除；任务目录和数据库限制为当前用户访问。不要把运行状态目录、环境文件、Codex 登录目录或 SSH 密钥加入开源仓库。本仓库仅包含插件源码、文档、许可证和隔离测试。
+State includes prompts, events, and output. Startup briefly stores an environment snapshot with mode `0600`; the worker deletes it after reading. Task directories and the database are restricted to the current user. Keep runtime state directories, environment files, Codex login directories, and SSH keys out of public repositories. This repository contains only plugin source, documentation, a license, and isolated tests.
 
-## 测试
+## Tests
 
-无需下载依赖，不调用真实模型：
+No dependency download or real model call is required:
 
 ```bash
 python3 tests/test_server_tasks.py -v
 ```
 
-9 项隔离测试覆盖提交进程退出、请求去重、失败判定、会话恢复、跨任务事件分页、定向停止和 SSH 参数隔离。测试使用临时 fake Codex 与 fake systemd，运行后清理。
+Nine isolated tests cover task execution continuing after the submission process exits, request deduplication, failure detection, session recovery, event pagination across tasks, targeted cancellation, and SSH argument isolation. They use temporary fake Codex and systemd executables and clean up afterward.
 
-开发时另做过真实 systemd + Codex CLI 的只读检查：提交命令退出后得到预期标记，再从同一 `thread_id` 恢复并得到续跑标记。未做真实 SSH 断网或关闭桌面 App 的端到端测试。
+Previous development checks also exercised real systemd and Codex CLI with read-only tasks: a submitted job returned the expected marker after the submit command exited, and resuming the same `thread_id` returned a continuation marker. No end-to-end test has been performed with a real SSH disconnection or a closed desktop app.
 
-## 许可证
+## License
 
-[MIT](LICENSE)。这是独立社区插件，与 OpenAI 官方产品无隶属关系。
-
-官方参考：[插件打包](https://developers.openai.com/plugins/build/plugins)、[Codex CLI](https://learn.chatgpt.com/docs/cli/reference)。
+[MIT](LICENSE). This is an independent community plugin with no affiliation with OpenAI.

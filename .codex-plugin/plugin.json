@@ -5,12 +5,12 @@
   "license": "MIT",
   "skills": "./skills/",
   "interface": {
-    "displayName": "服务器续跑",
-    "shortDescription": "提交服务器后台任务、查看进度与结果、继续会话",
+    "displayName": "Codex Server Tasks",
+    "shortDescription": "Run, monitor, and resume Codex tasks on your server",
     "longDescription": "Use the existing Codex app to submit independent server tasks, recover saved events and results, and continue a server-side Codex session. Requires a Linux server with Codex CLI, Python and a persistent systemd user manager.",
     "developerName": "Codex Server Tasks contributors",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["使用 $server-tasks 将任务交给服务器后台执行，返回任务编号。"]
+    "defaultPrompt": ["Use $server-tasks to run this task on the server in the background and return its job ID."]
   }
 }
